@@ -30,9 +30,11 @@ def get_info():
             "no_warnings": True,
             "cookiefile": COOKIES_FILE,
             "skip_download": True,
-            "format": "bestaudio/best",
+            # More robust format selection
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "ignoreerrors": True,
             "noplaylist": False,
+            "extract_flat": False,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -79,37 +81,70 @@ def download():
     output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
 
     try:
+        # Enhanced options with multiple format fallbacks
         ydl_opts = {
             "quiet": True,
             "no_warnings": True,
             "cookiefile": COOKIES_FILE,
             "outtmpl": output_template,
-            "format": "bestaudio/best",
+            # Try multiple format options in order of preference
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
                 "preferredquality": "320",
             }],
+            # Additional options to improve success rate
+            "ignoreerrors": True,
+            "no_color": True,
+            "extract_flat": False,
         }
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             title = info.get("title", "audio") if info else "audio"
 
+        # Find the downloaded mp3 file (it might have a different extension temporarily, but postprocessor converts to .mp3)
         mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
         if not os.path.exists(mp3_path):
+            # Fallback: look for any file starting with the file_id
             for f in os.listdir(DOWNLOAD_DIR):
                 if f.startswith(file_id):
                     mp3_path = os.path.join(DOWNLOAD_DIR, f)
                     break
+            else:
+                return jsonify({"error": "Converted file not found"}), 500
 
+        # Sanitize filename
         safe_title = "".join(c for c in title if c.isalnum() or c in " -_").strip()
-        return send_file(
+        filename = f"{safe_title or 'audio'}.mp3"
+
+        # Send file and then schedule deletion (optional)
+        response = send_file(
             mp3_path,
             as_attachment=True,
-            download_name=f"{safe_title or 'audio'}.mp3",
+            download_name=filename,
             mimetype="audio/mpeg",
         )
+
+        # Delete the file after sending (optional, to clean up temp space)
+        @response.call_on_close
+        def cleanup():
+            try:
+                os.remove(mp3_path)
+            except:
+                pass
+
+        return response
+
     except Exception as e:
+        # Clean up any partial file
+        for f in os.listdir(DOWNLOAD_DIR):
+            if f.startswith(file_id):
+                try:
+                    os.remove(os.path.join(DOWNLOAD_DIR, f))
+                except:
+                    pass
         return jsonify({"error": str(e)}), 500
 
 
