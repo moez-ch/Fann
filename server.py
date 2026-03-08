@@ -13,12 +13,15 @@ DOWNLOAD_DIR = "/tmp/ytmp3"
 Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
 
+COOKIES_FILE = "/opt/render/project/src/cookies.txt"
+
+
 def get_ydl_opts(output_path, format_type="mp3"):
     base_opts = {
         "outtmpl": output_path,
         "quiet": True,
         "no_warnings": True,
-        "cookiesfrombrowser": None,
+        "cookiefile": COOKIES_FILE,
     }
 
     if format_type == "mp3":
@@ -54,6 +57,7 @@ def get_info():
             "no_warnings": True,
             "skip_download": True,
             "extract_flat": False,
+            "cookiefile": COOKIES_FILE,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
