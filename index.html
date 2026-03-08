@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>WAVDROP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────────────── */
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #111118;
+      --card:      #18181f;
+      --border:    rgba(255,255,255,0.07);
+      --text:      #e8e8f0;
+      --muted:     #6b6b80;
+      --accent:    #ff3c6e;
+      --accent2:   #ff8c42;
+      --glow:      rgba(255,60,110,0.35);
+      --radius:    18px;
+      --font-head: 'Bebas Neue', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --trans:     all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    [data-theme="light"] {
+      --bg:      #f0f0f5;
+      --surface: #fafafc;
+      --card:    #ffffff;
+      --border:  rgba(0,0,0,0.08);
+      --text:    #111118;
+      --muted:   #888899;
+      --glow:    rgba(255,60,110,0.2);
+    }
+
+    /* ─── RESET ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      overflow-x: hidden;
+      transition: background 0.4s, color 0.4s;
+    }
+
+    /* ─── NOISE OVERLAY ──────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────────────── */
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 20px 120px;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 8px;
+    }
+    .logo {
+      font-family: var(--font-head);
+      font-size: 2.8rem;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .logo-sub {
+      font-size: 0.65rem;
+      letter-spacing: 4px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: -2px;
+      font-weight: 300;
+    }
+    .theme-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: var(--trans);
+    }
+    .theme-btn:hover { border-color: var(--accent); }
+
+    /* ─── TABS ───────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin: 28px 0 20px;
+      background: var(--surface);
+      border-radius: 50px;
+      padding: 5px;
+      border: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 50px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--trans);
+      letter-spacing: 0.5px;
+    }
+    .tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 16px var(--glow);
+    }
+
+    /* ─── PANELS ─────────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeUp 0.4s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── INPUT AREA ─────────────────────────────────────────── */
+    .input-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .url-input {
+      width: 100%;
+      padding: 18px 54px 18px 20px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--trans);
+    }
+    .url-input::placeholder { color: var(--muted); }
+    .url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--glow);
+    }
+    .paste-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: var(--trans);
+      padding: 4px;
+    }
+    .paste-btn:hover { color: var(--accent); }
+
+    /* ─── FETCH BTN ──────────────────────────────────────────── */
+    .btn-fetch {
+      width: 100%;
+      padding: 17px;
+      border-radius: var(--radius);
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: var(--trans);
+      box-shadow: 0 8px 32px var(--glow);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-fetch::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: var(--trans);
+    }
+    .btn-fetch:hover::after { opacity: 1; }
+    .btn-fetch:active { transform: scale(0.98); }
+    .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── LOADER ─────────────────────────────────────────────── */
+    .loader {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 36px 0;
+    }
+    .loader.show { display: flex; }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text {
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ─── PREVIEW CARD ───────────────────────────────────────── */
+    .preview-card {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 20px 0;
+      animation: fadeUp 0.4s ease;
+    }
+    .preview-card.show { display: block; }
+    .thumb-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .thumb-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(10,10,15,0.9), transparent 50%);
+    }
+    .duration-badge {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      backdrop-filter: blur(8px);
+    }
+    .preview-meta {
+      padding: 16px;
+    }
+    .preview-title {
+      font-weight: 500;
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .preview-uploader {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    /* ─── DOWNLOAD BTN ───────────────────────────────────────── */
+    .btn-download {
+      width: 100%;
+      padding: 17px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: var(--trans);
+      margin-top: 4px;
+    }
+    .btn-download:hover {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 32px var(--glow);
+    }
+    .btn-download:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ─── PROGRESS BAR ───────────────────────────────────────── */
+    .progress-wrap {
+      display: none;
+      margin-top: 16px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .progress-bar {
+      height: 4px;
+      border-radius: 99px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width 0.3s ease;
+      animation: shimmer 1.5s ease infinite;
+      background-size: 200%;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    /* ─── PLAYLIST ───────────────────────────────────────────── */
+    .playlist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .playlist-title {
+      font-family: var(--font-head);
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+    }
+    .playlist-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 4px 12px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+    }
+    .playlist-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .playlist-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      transition: var(--trans);
+    }
+    .playlist-item:hover { border-color: var(--accent); }
+    .playlist-thumb {
+      width: 72px;
+      height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+    .playlist-info { flex: 1; min-width: 0; }
+    .playlist-item-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .playlist-item-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .dl-item-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1.5px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: var(--trans);
+      display: grid;
+      place-items: center;
+    }
+    .dl-item-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .dl-item-btn.done {
+      background: #1a3a2a;
+      border-color: #2ecc71;
+      color: #2ecc71;
+    }
+    .dl-item-btn.loading {
+      animation: spin 0.8s linear infinite;
+      border-color: var(--muted);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    /* ─── HISTORY ────────────────────────────────────────────── */
+    .history-empty {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+    }
+    .history-empty .icon { font-size: 3rem; margin-bottom: 12px; }
+    .history-empty p { font-size: 0.9rem; }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .history-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .history-info { flex: 1; min-width: 0; }
+    .history-title {
+      font-size: 0.88rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-date {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .history-clear {
+      margin-bottom: 16px;
+      padding: 10px 20px;
+      border-radius: 50px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: var(--trans);
+    }
+    .history-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── TOAST ──────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-size: 0.88rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── ERROR MSG ──────────────────────────────────────────── */
+    .error-msg {
+      display: none;
+      background: rgba(255,60,110,0.1);
+      border: 1px solid rgba(255,60,110,0.3);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-top: 14px;
+    }
+    .error-msg.show { display: block; }
+
+    /* section label */
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div>
+      <div class="logo">WAVDROP</div>
+      <div class="logo-sub">320kbps · MP3 Downloader</div>
+    </div>
+    <button class="theme-btn" id="themeBtn" title="Toggle theme">🌙</button>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" data-tab="download">Download</button>
+    <button class="tab" data-tab="playlist">Playlist</button>
+    <button class="tab" data-tab="history">History</button>
+  </div>
+
+  <!-- ── DOWNLOAD PANEL ── -->
+  <div class="panel active" id="tab-download">
+    <p class="section-label">Paste a YouTube link</p>
+
+    <div class="input-wrap">
+      <input class="url-input" id="singleUrl" type="url" placeholder="https://youtube.com/watch?v=..." />
+      <button class="paste-btn" id="pasteBtn" title="Paste from clipboard">📋</button>
+    </div>
+
+    <button class="btn-fetch" id="fetchBtn">SEARCH</button>
+
+    <div class="loader" id="fetchLoader">
+      <div class="spinner"></div>
+      <span class="loader-text">Fetching info…</span>
+    </div>
+
+    <div class="error-msg" id="singleError"></div>
+
+    <div class="preview-card" id="previewCard">
+      <div class="thumb-wrap">
+        <img id="previewThumb" src="" alt="" />
+        <div class="thumb-overlay"></div>
+        <span class="duration-badge" id="previewDuration"></span>
+      </div>
+      <div class="preview-meta">
+        <div class="preview-title" id="previewTitle"></div>
+        <div class="preview-uploader" id="previewUploader"></div>
+      </div>
+    </div>
+
+    <div id="downloadWrap" style="display:none">
+      <button class="btn-download" id="downloadBtn">⬇ DOWNLOAD MP3</button>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label">
+          <span id="progressText">Processing…</span>
+          <span id="progressPct"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PLAYLIST PANEL ── -->
+  <div class="panel" id="tab-playlist">
+    <p class="section-label">Paste a YouTube playlist link</p>
+
+    <div class="input-wrap">
+      <input class="url-input" id="playlistUrl" type="url" placeholder="https://youtube.com/playlist?list=..." />
+      <button class="paste-btn" id="pastePlaylistBtn" title="Paste">📋</button>
+    </div>
+
+    <button class="btn-fetch" id="fetchPlaylistBtn">LOAD PLAYLIST</button>
+
+    <div class="loader" id="playlistLoader">
+      <div class="spinner"></div>
+      <span class="loader-text">Loading playlist…</span>
+    </div>
+
+    <div class="error-msg" id="playlistError"></div>
+
+    <div id="playlistResult" style="display:none; margin-top:20px;">
+      <div class="playlist-header">
+        <span class="playlist-title" id="playlistTitle"></span>
+        <span class="playlist-count" id="playlistCount"></span>
+      </div>
+      <div class="playlist-list" id="playlistList"></div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY PANEL ── -->
+  <div class="panel" id="tab-history">
+    <div id="historyEmpty" class="history-empty">
+      <div class="icon">🎵</div>
+      <p>No downloads yet.<br/>Your history will appear here.</p>
+    </div>
+    <div id="historyContent" style="display:none">
+      <button class="history-clear" id="clearHistory">Clear history</button>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  // ── CONFIG ──────────────────────────────────────────────────
+  // 👇 Replace this with your Render.com backend URL after deploying
+  const BACKEND = 'https://YOUR-APP-NAME.onrender.com';
+
+  // ── STATE ────────────────────────────────────────────────────
+  let currentVideoUrl = '';
+  let history = JSON.parse(localStorage.getItem('wavdrop_history') || '[]');
+  let isDark = localStorage.getItem('wavdrop_theme') !== 'light';
+
+  // ── THEME ────────────────────────────────────────────────────
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
+    localStorage.setItem('wavdrop_theme', isDark ? 'dark' : 'light');
+  }
+  applyTheme();
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    isDark = !isDark; applyTheme();
+  });
+
+  // ── TABS ─────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'history') renderHistory();
+    });
+  });
+
+  // ── TOAST ────────────────────────────────────────────────────
+  function toast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = isError ? 'error show' : 'show';
+    setTimeout(() => t.className = '', 3000);
+  }
+
+  // ── PASTE ────────────────────────────────────────────────────
+  async function pasteToInput(inputId) {
+    try {
+      const text = await navigator.clipboard.readText();
+      document.getElementById(inputId).value = text;
+    } catch { toast('Clipboard unavailable — paste manually', true); }
+  }
+  document.getElementById('pasteBtn').addEventListener('click', () => pasteToInput('singleUrl'));
+  document.getElementById('pastePlaylistBtn').addEventListener('click', () => pasteToInput('playlistUrl'));
+
+  // ── FORMAT DURATION ──────────────────────────────────────────
+  function fmtDuration(secs) {
+    if (!secs) return '';
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  // ── FETCH SINGLE VIDEO ───────────────────────────────────────
+  document.getElementById('fetchBtn').addEventListener('click', fetchSingle);
+  document.getElementById('singleUrl').addEventListener('keydown', e => { if (e.key === 'Enter') fetchSingle(); });
+
+  async function fetchSingle() {
+    const url = document.getElementById('singleUrl').value.trim();
+    if (!url) { toast('Paste a YouTube URL first', true); return; }
+
+    showEl('fetchLoader', true);
+    hide('previewCard'); hide('downloadWrap');
+    showError('singleError', '');
+    document.getElementById('fetchBtn').disabled = true;
+
+    try {
+      const res = await fetch(`${BACKEND}/info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (data.is_playlist) {
+        toast('Looks like a playlist — use the Playlist tab!', true);
+        return;
+      }
+
+      currentVideoUrl = url;
+      document.getElementById('previewThumb').src = data.thumbnail || '';
+      document.getElementById('previewTitle').textContent = data.title;
+      document.getElementById('previewUploader').textContent = '🎤 ' + (data.uploader || 'Unknown');
+      document.getElementById('previewDuration').textContent = fmtDuration(data.duration);
+      show('previewCard');
+      show('downloadWrap');
+
+    } catch(e) {
+      showError('singleError', '❌ ' + e.message);
+    } finally {
+      showEl('fetchLoader', false);
+      document.getElementById('fetchBtn').disabled = false;
+    }
+  }
+
+  // ── DOWNLOAD SINGLE ──────────────────────────────────────────
+  document.getElementById('downloadBtn').addEventListener('click', downloadSingle);
+
+  async function downloadSingle() {
+    if (!currentVideoUrl) return;
+    const btn = document.getElementById('downloadBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ DOWNLOADING…';
+    show('progressWrap');
+    animateProgress();
+
+    try {
+      const res = await fetch(`${BACKEND}/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: currentVideoUrl })
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const title = document.getElementById('previewTitle').textContent;
+      triggerDownload(blob, sanitize(title) + '.mp3');
+      addHistory(title);
+      toast('✅ Download complete!');
+    } catch(e) {
+      toast('❌ ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⬇ DOWNLOAD MP3';
+      hide('progressWrap');
+      document.getElementById('progressFill').style.width = '0%';
+    }
+  }
+
+  // ── FETCH PLAYLIST ───────────────────────────────────────────
+  document.getElementById('fetchPlaylistBtn').addEventListener('click', fetchPlaylist);
+
+  async function fetchPlaylist() {
+    const url = document.getElementById('playlistUrl').value.trim();
+    if (!url) { toast('Paste a playlist URL first', true); return; }
+
+    showEl('playlistLoader', true);
+    hide('playlistResult');
+    showError('playlistError', '');
+    document.getElementById('fetchPlaylistBtn').disabled = true;
+
+    try {
+      const res = await fetch(`${BACKEND}/info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.is_playlist) {
+        toast('Single video detected — use the Download tab!', true);
+        return;
+      }
+
+      document.getElementById('playlistTitle').textContent = data.title;
+      document.getElementById('playlistCount').textContent = data.count + ' tracks';
+      const list = document.getElementById('playlistList');
+      list.innerHTML = '';
+      data.entries.forEach((entry, i) => {
+        const item = buildPlaylistItem(entry, i);
+        list.appendChild(item);
+      });
+      show('playlistResult');
+
+    } catch(e) {
+      showError('playlistError', '❌ ' + e.message);
+    } finally {
+      showEl('playlistLoader', false);
+      document.getElementById('fetchPlaylistBtn').disabled = false;
+    }
+  }
+
+  function buildPlaylistItem(entry, idx) {
+    const div = document.createElement('div');
+    div.className = 'playlist-item';
+    div.innerHTML = `
+      <img class="playlist-thumb" src="${entry.thumbnail || ''}" alt="" onerror="this.style.display='none'" />
+      <div class="playlist-info">
+        <div class="playlist-item-title">${entry.title}</div>
+        <div class="playlist-item-sub">🎤 ${entry.uploader || 'Unknown'} · ${fmtDuration(entry.duration)}</div>
+      </div>
+      <button class="dl-item-btn" id="dlbtn-${idx}" title="Download">⬇</button>
+    `;
+    div.querySelector(`#dlbtn-${idx}`).addEventListener('click', async () => {
+      const btn = div.querySelector(`#dlbtn-${idx}`);
+      btn.classList.add('loading');
+      btn.textContent = '↻';
+      try {
+        const res = await fetch(`${BACKEND}/download`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: entry.url })
+        });
+        if (!res.ok) throw new Error('Failed');
+        const blob = await res.blob();
+        triggerDownload(blob, sanitize(entry.title) + '.mp3');
+        addHistory(entry.title);
+        btn.classList.remove('loading');
+        btn.classList.add('done');
+        btn.textContent = '✓';
+      } catch(e) {
+        toast('❌ ' + e.message, true);
+        btn.classList.remove('loading');
+        btn.textContent = '⬇';
+      }
+    });
+    return div;
+  }
+
+  // ── HISTORY ──────────────────────────────────────────────────
+  function addHistory(title) {
+    history.unshift({ title, date: new Date().toISOString() });
+    if (history.length > 50) history = history.slice(0, 50);
+    localStorage.setItem('wavdrop_history', JSON.stringify(history));
+  }
+
+  function renderHistory() {
+    if (!history.length) {
+      show('historyEmpty'); hide('historyContent'); return;
+    }
+    hide('historyEmpty'); show('historyContent');
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    history.forEach(item => {
+      const d = new Date(item.date);
+      const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const el = document.createElement('div');
+      el.className = 'history-item';
+      el.innerHTML = `
+        <div class="history-icon">🎵</div>
+        <div class="history-info">
+          <div class="history-title">${item.title}</div>
+          <div class="history-date">${dateStr}</div>
+        </div>
+      `;
+      list.appendChild(el);
+    });
+  }
+
+  document.getElementById('clearHistory').addEventListener('click', () => {
+    history = [];
+    localStorage.setItem('wavdrop_history', '[]');
+    renderHistory();
+    toast('History cleared');
+  });
+
+  // ── PROGRESS ANIMATION (fake, since fetch doesn't give progress) ──
+  function animateProgress() {
+    let pct = 0;
+    const fill = document.getElementById('progressFill');
+    const txt = document.getElementById('progressText');
+    const stages = ['Processing audio…', 'Converting to MP3…', 'Almost done…'];
+    let stage = 0;
+    const iv = setInterval(() => {
+      pct = Math.min(pct + Math.random() * 8, 92);
+      fill.style.width = pct + '%';
+      if (pct > 30 && stage === 0) { txt.textContent = stages[1]; stage = 1; }
+      if (pct > 70 && stage === 1) { txt.textContent = stages[2]; stage = 2; }
+    }, 400);
+    return iv;
+  }
+
+  // ── HELPERS ──────────────────────────────────────────────────
+  function triggerDownload(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+
+  function sanitize(str) {
+    return str.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_').slice(0, 80);
+  }
+
+  function show(id)       { document.getElementById(id).style.display = ''; }
+  function hide(id)       { document.getElementById(id).style.display = 'none'; }
+  function showEl(id, v)  { document.getElementById(id).classList[v ? 'add' : 'remove']('show'); }
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList[msg ? 'add' : 'remove']('show');
+  }
+</script>
+</body>
+</html>
