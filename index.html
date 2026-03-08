@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>WAVDROP</title>
+  <title>FANN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
   <style>
@@ -537,7 +537,7 @@
   <!-- HEADER -->
   <header>
     <div>
-      <div class="logo">WAVDROP</div>
+      <div class="logo">FANN</div>
       <div class="logo-sub">320kbps · MP3 Downloader</div>
     </div>
     <button class="theme-btn" id="themeBtn" title="Toggle theme">🌙</button>
@@ -639,18 +639,18 @@
 <script>
   // ── CONFIG ──────────────────────────────────────────────────
   // 👇 Replace this with your Render.com backend URL after deploying
-  const BACKEND = 'https://fann-3en9.onrender.com';
+  const BACKEND = 'https://YOUR-APP-NAME.onrender.com';
 
   // ── STATE ────────────────────────────────────────────────────
   let currentVideoUrl = '';
-  let history = JSON.parse(localStorage.getItem('wavdrop_history') || '[]');
-  let isDark = localStorage.getItem('wavdrop_theme') !== 'light';
+  let history = JSON.parse(localStorage.getItem('fann_history') || '[]');
+  let isDark = localStorage.getItem('fann_theme') !== 'light';
 
   // ── THEME ────────────────────────────────────────────────────
   function applyTheme() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.getElementById('themeBtn').textContent = isDark ? '🌙' : '☀️';
-    localStorage.setItem('wavdrop_theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('fann_theme', isDark ? 'dark' : 'light');
   }
   applyTheme();
   document.getElementById('themeBtn').addEventListener('click', () => {
@@ -852,7 +852,7 @@
   function addHistory(title) {
     history.unshift({ title, date: new Date().toISOString() });
     if (history.length > 50) history = history.slice(0, 50);
-    localStorage.setItem('wavdrop_history', JSON.stringify(history));
+    localStorage.setItem('fann_history', JSON.stringify(history));
   }
 
   function renderHistory() {
@@ -880,7 +880,7 @@
 
   document.getElementById('clearHistory').addEventListener('click', () => {
     history = [];
-    localStorage.setItem('wavdrop_history', '[]');
+    localStorage.setItem('fann_history', '[]');
     renderHistory();
     toast('History cleared');
   });

@@ -26,7 +26,7 @@ def get_ydl_opts(output_path, format_type="mp3"):
 
     if format_type == "mp3":
         base_opts.update({
-            "format": "bestaudio/best",
+            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
