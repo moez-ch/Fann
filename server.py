@@ -3,7 +3,6 @@ from flask_cors import CORS
 import yt_dlp
 import os
 import uuid
-import json
 from pathlib import Path
 
 app = Flask(__name__)
@@ -12,29 +11,14 @@ CORS(app)
 DOWNLOAD_DIR = "/tmp/ytmp3"
 Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
-
 COOKIES_FILE = "/opt/render/project/src/cookies.txt"
 
-
-def get_ydl_opts(output_path, format_type="mp3"):
-    base_opts = {
-        "outtmpl": output_path,
-        "quiet": True,
-        "no_warnings": True,
-        "cookiefile": COOKIES_FILE,
-    }
-
-    if format_type == "mp3":
-        base_opts.update({
-            "format": "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "320",
-            }],
-        })
-
-    return base_opts
+BASE_OPTS = {
+    "quiet": True,
+    "no_warnings": True,
+    "cookiefile": COOKIES_FILE,
+    "socket_timeout": 30,
+}
 
 
 @app.route("/health", methods=["GET"])
@@ -44,30 +28,29 @@ def health():
 
 @app.route("/info", methods=["POST"])
 def get_info():
-    """Fetch video metadata: title, thumbnail, duration, uploader."""
     data = request.get_json()
     url = data.get("url", "").strip()
-
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
     try:
         ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
+            **BASE_OPTS,
             "skip_download": True,
-            "extract_flat": False,
-            "cookiefile": COOKIES_FILE,
+            "extract_flat": "in_playlist",
+            "ignoreerrors": True,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
-        # Handle playlists
+        if info is None:
+            return jsonify({"error": "Could not fetch video info"}), 500
+
         is_playlist = info.get("_type") == "playlist"
 
         if is_playlist:
-            entries = info.get("entries", [])
+            entries = [e for e in info.get("entries", []) if e]
             return jsonify({
                 "is_playlist": True,
                 "title": info.get("title", "Playlist"),
@@ -77,10 +60,10 @@ def get_info():
                         "title": e.get("title", "Unknown"),
                         "thumbnail": e.get("thumbnail", ""),
                         "duration": e.get("duration", 0),
-                        "url": e.get("webpage_url", e.get("url", "")),
+                        "url": e.get("url") or e.get("webpage_url", ""),
                         "uploader": e.get("uploader", "Unknown"),
                     }
-                    for e in entries[:50]  # cap at 50
+                    for e in entries[:50]
                 ],
             })
         else:
@@ -99,10 +82,8 @@ def get_info():
 
 @app.route("/download", methods=["POST"])
 def download():
-    """Download a single video as MP3 at 320kbps."""
     data = request.get_json()
     url = data.get("url", "").strip()
-
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
@@ -110,23 +91,30 @@ def download():
     output_template = os.path.join(DOWNLOAD_DIR, f"{file_id}.%(ext)s")
 
     try:
-        ydl_opts = get_ydl_opts(output_template, "mp3")
+        ydl_opts = {
+            **BASE_OPTS,
+            "outtmpl": output_template,
+            "format": "bestaudio/best",
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "320",
+            }],
+        }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            title = info.get("title", "audio")
+            title = info.get("title", "audio") if info else "audio"
 
-        # Find the output file
         mp3_path = os.path.join(DOWNLOAD_DIR, f"{file_id}.mp3")
         if not os.path.exists(mp3_path):
-            # fallback: find any file with that id
             for f in os.listdir(DOWNLOAD_DIR):
                 if f.startswith(file_id):
                     mp3_path = os.path.join(DOWNLOAD_DIR, f)
                     break
 
         safe_title = "".join(c for c in title if c.isalnum() or c in " -_").strip()
-        download_name = f"{safe_title}.mp3"
+        download_name = f"{safe_title or 'audio'}.mp3"
 
         return send_file(
             mp3_path,
@@ -137,18 +125,6 @@ def download():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@app.route("/download-playlist", methods=["POST"])
-def download_playlist():
-    """Download a single item from a playlist by its URL."""
-    data = request.get_json()
-    url = data.get("url", "").strip()
-
-    if not url:
-        return jsonify({"error": "No URL provided"}), 400
-
-    return download()  # reuse same logic
 
 
 if __name__ == "__main__":
