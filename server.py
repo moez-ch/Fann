@@ -37,7 +37,6 @@ def get_info():
         ydl_opts = {
             **BASE_OPTS,
             "skip_download": True,
-            "extract_flat": "in_playlist",
             "ignoreerrors": True,
         }
 
