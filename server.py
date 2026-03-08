@@ -10,15 +10,7 @@ CORS(app)
 
 DOWNLOAD_DIR = "/tmp/ytmp3"
 Path(DOWNLOAD_DIR).mkdir(parents=True, exist_ok=True)
-
 COOKIES_FILE = "/opt/render/project/src/cookies.txt"
-
-BASE_OPTS = {
-    "quiet": True,
-    "no_warnings": True,
-    "cookiefile": COOKIES_FILE,
-    "socket_timeout": 30,
-}
 
 
 @app.route("/health", methods=["GET"])
@@ -32,14 +24,16 @@ def get_info():
     url = data.get("url", "").strip()
     if not url:
         return jsonify({"error": "No URL provided"}), 400
-
     try:
         ydl_opts = {
-            **BASE_OPTS,
+            "quiet": True,
+            "no_warnings": True,
+            "cookiefile": COOKIES_FILE,
             "skip_download": True,
+            "format": "bestaudio/best",
             "ignoreerrors": True,
+            "noplaylist": False,
         }
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
@@ -47,23 +41,19 @@ def get_info():
             return jsonify({"error": "Could not fetch video info"}), 500
 
         is_playlist = info.get("_type") == "playlist"
-
         if is_playlist:
             entries = [e for e in info.get("entries", []) if e]
             return jsonify({
                 "is_playlist": True,
                 "title": info.get("title", "Playlist"),
                 "count": len(entries),
-                "entries": [
-                    {
-                        "title": e.get("title", "Unknown"),
-                        "thumbnail": e.get("thumbnail", ""),
-                        "duration": e.get("duration", 0),
-                        "url": e.get("url") or e.get("webpage_url", ""),
-                        "uploader": e.get("uploader", "Unknown"),
-                    }
-                    for e in entries[:50]
-                ],
+                "entries": [{
+                    "title": e.get("title", "Unknown"),
+                    "thumbnail": e.get("thumbnail", ""),
+                    "duration": e.get("duration", 0),
+                    "url": e.get("webpage_url") or e.get("url", ""),
+                    "uploader": e.get("uploader", "Unknown"),
+                } for e in entries[:50]],
             })
         else:
             return jsonify({
@@ -74,7 +64,6 @@ def get_info():
                 "uploader": info.get("uploader", "Unknown"),
                 "url": url,
             })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -91,7 +80,9 @@ def download():
 
     try:
         ydl_opts = {
-            **BASE_OPTS,
+            "quiet": True,
+            "no_warnings": True,
+            "cookiefile": COOKIES_FILE,
             "outtmpl": output_template,
             "format": "bestaudio/best",
             "postprocessors": [{
@@ -100,7 +91,6 @@ def download():
                 "preferredquality": "320",
             }],
         }
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             title = info.get("title", "audio") if info else "audio"
@@ -113,15 +103,12 @@ def download():
                     break
 
         safe_title = "".join(c for c in title if c.isalnum() or c in " -_").strip()
-        download_name = f"{safe_title or 'audio'}.mp3"
-
         return send_file(
             mp3_path,
             as_attachment=True,
-            download_name=download_name,
+            download_name=f"{safe_title or 'audio'}.mp3",
             mimetype="audio/mpeg",
         )
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
